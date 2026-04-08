@@ -11,7 +11,7 @@ from .const import (
     CMD_WSF, CMD_WTS, CMD_GTM, CMD_GMA, CMD_GNA, CMD_GSF,
     CMD_STS, CMD_SU2, CMD_SU3, CMD_EBI, CMD_EAI, CMD_ESI,
     CMD_TOO, CMD_VMC, CMD_VMM,
-    EBI_ON, EBI_OFF, EAI_UP, EAI_DOWN,
+    EBI_ON, EBI_OFF, EBI_TOGGLE, EAI_UP, EAI_DOWN,
     UPD_D, UPD_WS, UPD_WT, UPD_TP, UPD_TM, UPD_TR, UPD_TW, UPD_TK,
     UPD_LL, UPD_UMI, UPD_EPV,
     AVE_TYPE_THERMOSTAT,
@@ -82,6 +82,14 @@ class AveCoordinator:
         # Register ourselves as a message handler on the client
         client.register_callback(self.handle_message)
 
+        # Register reconnect callback to re-run init sequence
+        client.set_on_reconnect(self._on_reconnect)
+
+    def _on_reconnect(self) -> None:
+        """Called by the client after a successful reconnect."""
+        _LOGGER.info("Reconnected to AVE server — scheduling init sequence re-run")
+        asyncio.create_task(self.async_send_init_sequence())
+
     # ------------------------------------------------------------------
     # Listener pattern
     # ------------------------------------------------------------------
@@ -124,6 +132,7 @@ class AveCoordinator:
             "wsf": self._handle_wsf,
             "wts": self._handle_wts,
             "upd": self._handle_upd,
+            "grp": self._handle_grp,
             "gsf": self._handle_gsf,
             "gtm": self._handle_gtm,
             "gma": self._handle_noop,
@@ -288,6 +297,8 @@ class AveCoordinator:
                 self._upd_power(sub, params)
             elif sub == UPD_EPV:
                 self._upd_epv(params)
+            elif sub == "X":
+                self._upd_x(params)
         except Exception:
             _LOGGER.exception("Error in UPD handler for sub=%s params=%s", sub, params)
 
@@ -295,6 +306,28 @@ class AveCoordinator:
 
     def _handle_gsf(self, msg: AveMessage) -> None:
         """Handle GSF response (informational — server features)."""
+
+    def _handle_grp(self, msg: AveMessage) -> None:
+        """Handle GRP response — group status update (SDK line 2031-2052).
+
+        Records: [[device_id, status], ...]
+        """
+        updated = 0
+        for record in msg.records:
+            if len(record) < 2:
+                continue
+            try:
+                device_id = int(record[0])
+                status = int(record[1])
+                dev = self.devices.get(device_id)
+                if dev is not None:
+                    dev.status = status
+                    updated += 1
+            except (ValueError, IndexError):
+                continue
+        if updated > 0:
+            _LOGGER.debug("GRP updated status for %d devices", updated)
+            self._notify_listeners()
 
     def _handle_gtm(self, msg: AveMessage) -> None:
         """Handle GTM response (server time, informational)."""
@@ -326,13 +359,13 @@ class AveCoordinator:
         if subtype == "T":
             dev.temperature = int(raw) / 10.0
         elif subtype == "S":
-            dev.setpoint = int(raw) / 10.0
+            dev.season = int(raw)
         elif subtype == "O":
             dev.offset = int(raw) / 10.0
         elif subtype == "L":
-            dev.local_off = int(raw)
+            dev.fan_level = int(raw)
         elif subtype == "Z":
-            dev.window_state = int(raw)
+            dev.local_off = int(raw)
 
     def _upd_tp(self, params: list[str]) -> None:
         """TP: thermostat setpoint. params = [TP, id, value*10]"""
@@ -380,13 +413,8 @@ class AveCoordinator:
             dev.keyboard_lock = int(params[2])
 
     def _upd_d(self, params: list[str]) -> None:
-        """D: dimmer level. params = [D, id, level]"""
-        if len(params) < 3:
-            return
-        device_id = int(params[1])
-        dev = self.devices.get(device_id)
-        if dev:
-            dev.status = int(params[2])
+        """D: device icon update (SDK line 1967-1990). Not a status change — no-op."""
+        _LOGGER.debug("UPD D (device icon) ignored: params=%s", params)
 
     def _upd_ll(self, params: list[str]) -> None:
         """LL: sensor reading. params = [LL, id, value_string] e.g. '19.9°C'"""
@@ -423,13 +451,33 @@ class AveCoordinator:
                 dev.power_values.append((sub, params[2]))
 
     def _upd_epv(self, params: list[str]) -> None:
-        """epv: energy/power value. params = [epv, id, value]"""
+        """epv: energy/power values. params = [epv, id, val1, val2, val3]"""
         if len(params) < 3:
             return
         device_id = int(params[1])
         dev = self.devices.get(device_id)
         if dev:
-            dev.power_values.append(("epv", params[2]))
+            dev.power_values = [
+                float(params[2]) if len(params) > 2 else 0.0,
+                float(params[3]) if len(params) > 3 else 0.0,
+                float(params[4]) if len(params) > 4 else 0.0,
+            ]
+
+    def _upd_x(self, params: list[str]) -> None:
+        """X: antitheft/extended update. params = [X, subtype, id, value]"""
+        if len(params) < 4:
+            return
+        subtype = params[1].upper()
+        if subtype == "A":
+            # Antitheft area status update (SDK line 1948)
+            device_id = int(params[2])
+            value = int(params[3])
+            dev = self.devices.get(device_id)
+            if dev:
+                dev.status = value
+                _LOGGER.debug("Antitheft area %d status updated to %d", device_id, value)
+        else:
+            _LOGGER.debug("UPD X subtype %s not handled: params=%s", subtype, params)
 
     # ------------------------------------------------------------------
     # Init sequence
@@ -524,16 +572,26 @@ class AveCoordinator:
         """Turn a light on or off via WebSocket EBI command.
 
         Uses EBI_TOGGLE (10) which is the standard command used by the
-        AVE webapp for light toggle. EBI_ON(3)/EBI_OFF(2) are dimmer-specific.
+        AVE webapp for light toggle. Checks current state first to
+        maintain HA idempotency (requesting on when already on is a no-op).
         """
+        dev = self.devices.get(device_id)
+        if dev is not None:
+            currently_on = dev.status != 0
+            if on and currently_on:
+                _LOGGER.debug("Light %d already on, skipping toggle", device_id)
+                return True
+            if not on and not currently_on:
+                _LOGGER.debug("Light %d already off, skipping toggle", device_id)
+                return True
         _LOGGER.info("Sending light command: EBI device=%d toggle (on=%s)", device_id, on)
         result = await self._client.send_command(CMD_EBI, [str(device_id), str(EBI_TOGGLE)])
         _LOGGER.info("Light command result: %s", result)
         return result
 
     async def async_set_dimmer(self, device_id: int, level: int) -> bool:
-        """Set dimmer level via HTTP SIL command (no WS equivalent for analog level)."""
-        return await self._client.send_http_command(BRIDGE_CMD_SIL, device_id, level, is_dimmer_level=True)
+        """Set dimmer level via WebSocket SIL command."""
+        return await self._client.send_command("SIL", [str(device_id)], [str(level)])
 
     async def async_set_cover_up(self, device_id: int) -> bool:
         """Open a cover via WebSocket EAI command."""
@@ -559,8 +617,8 @@ class AveCoordinator:
         return result
 
     async def async_activate_scenario(self, device_id: int) -> bool:
-        """Activate a scenario via HTTP ESI command."""
-        return await self._client.send_http_command(CMD_ESI, device_id, 0)
+        """Activate a scenario via WebSocket ESI command."""
+        return await self._client.send_command("ESI", [str(device_id)])
 
     async def async_set_vmc_daikin_mode(self, device_id: int, mode: int) -> bool:
         """Set VMC Daikin operating mode."""

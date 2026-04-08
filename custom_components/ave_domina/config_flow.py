@@ -1,6 +1,7 @@
 """Config flow for AVE DOMINA Plus."""
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import socket
 
@@ -8,7 +9,6 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 
-from .ave_client import AveClient
 from .const import DOMAIN, CONF_HOST, CONF_PORT, DEFAULT_WS_PORT, PRIVATE_NETWORK_PREFIXES
 
 
@@ -25,14 +25,15 @@ def is_private_address(host: str) -> bool:
 
 
 async def test_connection(host: str, port: int) -> bool:
-    """Test if we can connect to the AVE server."""
-    client = AveClient(host, port)
+    """Test if we can reach the AVE server via a simple TCP socket check."""
     try:
-        if await client.connect():
-            await client.disconnect()
-            return True
-        return False
-    except Exception:
+        _, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port), timeout=5.0
+        )
+        writer.close()
+        await writer.wait_closed()
+        return True
+    except (OSError, asyncio.TimeoutError):
         return False
 
 

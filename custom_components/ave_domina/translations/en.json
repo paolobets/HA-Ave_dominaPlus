@@ -1,0 +1,18 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AVE DOMINA Plus",
+        "description": "Enter the IP address of your AVE Web Server 53AB-WBS",
+        "data": {
+          "host": "Host",
+          "port": "WebSocket Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to AVE server. Check the IP and port.",
+      "not_local_network": "The AVE server must be on your local network (private IP). Public IPs are not allowed for security."
+    }
+  }
+}

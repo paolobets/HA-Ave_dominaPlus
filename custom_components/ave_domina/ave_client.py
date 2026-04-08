@@ -136,10 +136,15 @@ class AveClient:
         self._connected = False
         self._reconnect_task: asyncio.Task | None = None
         self._should_reconnect = True
+        self._on_reconnect: Callable[[], None] | None = None
 
     @property
     def connected(self) -> bool:
         return self._connected
+
+    def set_on_reconnect(self, callback: Callable[[], None]) -> None:
+        """Set a callback to be called after a successful reconnect."""
+        self._on_reconnect = callback
 
     def register_callback(self, callback: Callable[[AveMessage], None]) -> None:
         self._callbacks.append(callback)
@@ -249,5 +254,10 @@ class AveClient:
         while self._should_reconnect:
             await asyncio.sleep(delay)
             if await self.connect():
+                if self._on_reconnect is not None:
+                    try:
+                        self._on_reconnect()
+                    except Exception:
+                        _LOGGER.exception("Error in on_reconnect callback")
                 return
             delay = min(delay * 2, 60)

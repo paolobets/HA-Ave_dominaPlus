@@ -78,5 +78,8 @@ class AveEnergySensor(AveEntity, SensorEntity):
     @property
     def native_value(self) -> float | None:
         if self.ave_device.power_values:
-            return self.ave_device.power_values[0]
+            try:
+                return float(self.ave_device.power_values[0])
+            except (ValueError, TypeError):
+                return None
         return None

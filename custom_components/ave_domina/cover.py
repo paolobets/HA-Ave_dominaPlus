@@ -5,7 +5,6 @@ from homeassistant.components.cover import (
     CoverEntity,
     CoverDeviceClass,
     CoverEntityFeature,
-    ATTR_POSITION,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
