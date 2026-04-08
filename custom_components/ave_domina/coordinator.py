@@ -9,7 +9,7 @@ from typing import Callable
 from .const import (
     CMD_LM, CMD_LMC, CMD_LML, CMD_LDI, CMD_LI2,
     CMD_WSF, CMD_WTS, CMD_GTM, CMD_GMA, CMD_GNA, CMD_GSF,
-    CMD_STS, CMD_EBI, CMD_EAI, CMD_ESI,
+    CMD_STS, CMD_SU2, CMD_SU3, CMD_EBI, CMD_EAI, CMD_ESI,
     CMD_TOO, CMD_VMC, CMD_VMM,
     EBI_ON, EBI_OFF, EAI_UP, EAI_DOWN,
     UPD_D, UPD_WS, UPD_WT, UPD_TP, UPD_TM, UPD_TR, UPD_TW, UPD_TK,
@@ -453,7 +453,15 @@ class AveCoordinator:
         # Small delay for LMC/LML responses to arrive
         await asyncio.sleep(2.0)
 
-        # Step 3: Request device list FIRST (so devices exist for WSF)
+        # Step 3: Subscribe to push updates (SU2/SU3) — CRITICAL!
+        # Without these, the server will NOT send UPD messages to this connection
+        _LOGGER.debug("Init: subscribing to updates (SU2/SU3)")
+        await self._client.send_command(CMD_SU2)
+        await asyncio.sleep(0.5)
+        await self._client.send_command(CMD_SU3)
+        await asyncio.sleep(2.0)
+
+        # Step 4: Request device list (so devices exist for status updates)
         _LOGGER.debug("Init: sending LDI")
         await self._client.send_command(CMD_LDI)
         try:
@@ -461,14 +469,14 @@ class AveCoordinator:
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout waiting for LDI response — no devices discovered")
 
-        # Step 4: Now request device status by family (devices exist)
+        # Step 5: Request device status by family (devices now exist)
         _LOGGER.debug("Init: requesting device status (WSF)")
         for family in WSF_FAMILIES:
             await self._client.send_command(CMD_WSF, [family])
             await asyncio.sleep(0.3)
         await self._client.send_command(CMD_GSF, ["12"])
-        # Wait for WSF responses to arrive
-        await asyncio.sleep(2.0)
+        # Wait for status responses / UPD messages to arrive
+        await asyncio.sleep(3.0)
 
         # Step 5: Request metadata and thermostat status
         await self._client.send_command(CMD_GTM)
