@@ -38,9 +38,24 @@ CMD_TOO = "TOO"
 CMD_VMC = "VMC"
 CMD_VMM = "VMM"
 
-# HTTP bridge commands
+# HTTP bridge commands (fallback only)
 BRIDGE_URL = "bridge.php"
 BRIDGE_CMD_SIL = "SIL"
+
+# WebSocket device control commands
+CMD_EBI = "EBI"   # Execute Binary Input — lights on/off/toggle
+CMD_EAI = "EAI"   # Execute Analog Input — shutters up/down
+CMD_EBC = "EBC"   # Execute By Command — map command execution
+CMD_ESI = "ESI"   # Execute Scenario Input
+
+# EBI values (lights)
+EBI_TOGGLE = 10
+EBI_OFF = 2
+EBI_ON = 3
+
+# EAI values (shutters)
+EAI_UP = 8
+EAI_DOWN = 9
 
 # UPD prefixes (received)
 UPD_D = "D"

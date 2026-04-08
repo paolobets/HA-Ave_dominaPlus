@@ -11,7 +11,8 @@ def mock_coordinator():
     coord.client = MagicMock()
     coord.client.host = "192.168.1.100"
     coord.client.connected = True
-    coord.async_set_cover = AsyncMock()
+    coord.async_set_cover_up = AsyncMock()
+    coord.async_set_cover_down = AsyncMock()
     coord.register_listener = MagicMock()
     coord.remove_listener = MagicMock()
     return coord
@@ -34,22 +35,15 @@ class TestAveCover:
         assert cover.is_closed is True
 
     @pytest.mark.asyncio
-    async def test_set_position(self, mock_coordinator):
-        device = AveDevice(id=10, name="Tapparella", device_type=3, status=0)
-        cover = AveCover(mock_coordinator, device)
-        await cover.async_set_cover_position(position=50)
-        mock_coordinator.async_set_cover.assert_awaited_once_with(10, 127)
-
-    @pytest.mark.asyncio
     async def test_open_cover(self, mock_coordinator):
         device = AveDevice(id=10, name="Tapparella", device_type=3, status=0)
         cover = AveCover(mock_coordinator, device)
         await cover.async_open_cover()
-        mock_coordinator.async_set_cover.assert_awaited_once_with(10, 254)
+        mock_coordinator.async_set_cover_up.assert_awaited_once_with(10)
 
     @pytest.mark.asyncio
     async def test_close_cover(self, mock_coordinator):
         device = AveDevice(id=10, name="Tapparella", device_type=3, status=254)
         cover = AveCover(mock_coordinator, device)
         await cover.async_close_cover()
-        mock_coordinator.async_set_cover.assert_awaited_once_with(10, 0)
+        mock_coordinator.async_set_cover_down.assert_awaited_once_with(10)

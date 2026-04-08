@@ -34,7 +34,6 @@ class AveCover(AveEntity, CoverEntity):
     _attr_supported_features = (
         CoverEntityFeature.OPEN
         | CoverEntityFeature.CLOSE
-        | CoverEntityFeature.SET_POSITION
     )
 
     def __init__(self, coordinator: AveCoordinator, device: AveDevice) -> None:
@@ -49,12 +48,7 @@ class AveCover(AveEntity, CoverEntity):
         return self.ave_device.status == 0
 
     async def async_open_cover(self, **kwargs) -> None:
-        await self.coordinator.async_set_cover(self.ave_device.id, 254)
+        await self.coordinator.async_set_cover_up(self.ave_device.id)
 
     async def async_close_cover(self, **kwargs) -> None:
-        await self.coordinator.async_set_cover(self.ave_device.id, 0)
-
-    async def async_set_cover_position(self, **kwargs) -> None:
-        position = kwargs.get(ATTR_POSITION, 0)
-        ave_position = round(position / 100 * 254)
-        await self.coordinator.async_set_cover(self.ave_device.id, ave_position)
+        await self.coordinator.async_set_cover_down(self.ave_device.id)

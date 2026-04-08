@@ -9,7 +9,9 @@ from typing import Callable
 from .const import (
     CMD_LM, CMD_LMC, CMD_LML, CMD_LDI, CMD_LI2,
     CMD_WSF, CMD_WTS, CMD_GTM, CMD_GMA, CMD_GNA, CMD_GSF,
-    CMD_STS,
+    CMD_STS, CMD_EBI, CMD_EAI, CMD_ESI,
+    CMD_TOO, CMD_VMC, CMD_VMM,
+    EBI_ON, EBI_OFF, EAI_UP, EAI_DOWN,
     UPD_D, UPD_WS, UPD_WT, UPD_TP, UPD_TM, UPD_TR, UPD_TW, UPD_TK,
     UPD_LL, UPD_UMI, UPD_EPV,
     AVE_TYPE_THERMOSTAT,
@@ -410,17 +412,22 @@ class AveCoordinator:
     # Control helpers
     # ------------------------------------------------------------------
 
-    async def async_set_light(self, device_id: int, value: int) -> bool:
-        """Turn a light on (1) or off (0)."""
-        return await self._client.send_http_command("", device_id, value)
+    async def async_set_light(self, device_id: int, on: bool) -> bool:
+        """Turn a light on or off via WebSocket EBI command."""
+        value = EBI_ON if on else EBI_OFF
+        return await self._client.send_command(CMD_EBI, [f"{device_id},{value}"])
 
     async def async_set_dimmer(self, device_id: int, level: int) -> bool:
-        """Set dimmer level (0-100)."""
+        """Set dimmer level via HTTP SIL command (no WS equivalent for analog level)."""
         return await self._client.send_http_command(BRIDGE_CMD_SIL, device_id, level, is_dimmer_level=True)
 
-    async def async_set_cover(self, device_id: int, value: int) -> bool:
-        """Control a cover (open/close/stop)."""
-        return await self._client.send_http_command("", device_id, value)
+    async def async_set_cover_up(self, device_id: int) -> bool:
+        """Open a cover via WebSocket EAI command."""
+        return await self._client.send_command(CMD_EAI, [f"{device_id},{EAI_UP}"])
+
+    async def async_set_cover_down(self, device_id: int) -> bool:
+        """Close a cover via WebSocket EAI command."""
+        return await self._client.send_command(CMD_EAI, [f"{device_id},{EAI_DOWN}"])
 
     async def async_set_thermostat(
         self,
@@ -435,8 +442,8 @@ class AveCoordinator:
         return await self._client.send_command(CMD_STS, [str(device_id), payload])
 
     async def async_activate_scenario(self, device_id: int) -> bool:
-        """Activate a scenario."""
-        return await self._client.send_http_command("", device_id, 1)
+        """Activate a scenario via HTTP ESI command."""
+        return await self._client.send_http_command(CMD_ESI, device_id, 0)
 
     async def async_set_vmc_daikin_mode(self, device_id: int, mode: int) -> bool:
         """Set VMC Daikin operating mode."""
