@@ -1,0 +1,102 @@
+"""Constants for the AVE DOMINA Plus integration."""
+
+DOMAIN = "ave_domina"
+
+# Connection
+DEFAULT_WS_PORT = 14001
+DEFAULT_HTTP_PORT = 80
+WS_SUBPROTOCOLS = ["binary", "base64"]
+RECONNECT_INTERVAL_BASE = 2
+RECONNECT_INTERVAL_MAX = 60
+SILENCE_TIMEOUT = 90
+STABLE_CONNECTION_RESET = 60
+
+# Frame bytes
+STX = 0x02
+ETX = 0x03
+EOT = 0x04
+GS = 0x1D   # Group Separator — parameter delimiter
+RS = 0x1E   # Record Separator — record delimiter
+
+# WebSocket commands (sent)
+CMD_LM = "LM"
+CMD_LMC = "LMC"
+CMD_LML = "LML"
+CMD_LDI = "LDI"
+CMD_LI2 = "LI2"
+CMD_WSF = "WSF"
+CMD_WTS = "WTS"
+CMD_GTM = "GTM"
+CMD_GMA = "GMA"
+CMD_GNA = "GNA"
+CMD_GSF = "GSF"
+CMD_STS = "STS"
+CMD_SU2 = "SU2"
+CMD_SU3 = "SU3"
+CMD_PONG = "PONG"
+CMD_TOO = "TOO"
+CMD_VMC = "VMC"
+CMD_VMM = "VMM"
+
+# HTTP bridge commands
+BRIDGE_URL = "bridge.php"
+BRIDGE_CMD_SIL = "SIL"
+
+# UPD prefixes (received)
+UPD_D = "D"
+UPD_WS = "WS"
+UPD_WT = "WT"
+UPD_TT = "TT"
+UPD_TP = "TP"
+UPD_TM = "TM"
+UPD_TR = "TR"
+UPD_TW = "TW"
+UPD_TK = "TK"
+UPD_LL = "LL"
+UPD_UMI = "UMI"
+UPD_SRE = "SRE"
+UPD_STO = "STO"
+UPD_EPV = "epv"
+
+# AVE device type IDs
+AVE_TYPE_LIGHT = 1
+AVE_TYPE_DIMMER = 2
+AVE_TYPE_SHUTTER = 3
+AVE_TYPE_THERMOSTAT = 4
+AVE_TYPE_ECONOMIZER = 5
+AVE_TYPE_SCENARIO = 6
+AVE_TYPE_GENERIC = 9
+AVE_TYPE_ANTITHEFT_AREA = 12
+AVE_TYPE_ANTITHEFT_SENSOR = 13
+AVE_TYPE_AUDIO = 14
+AVE_TYPE_SHUTTER_ALT1 = 16
+AVE_TYPE_ABANO = 17
+AVE_TYPE_SHUTTER_ALT2 = 19
+AVE_TYPE_LIGHT_DALI = 22
+
+# Device type groupings
+LIGHT_TYPES = {AVE_TYPE_LIGHT, AVE_TYPE_DIMMER, AVE_TYPE_GENERIC, AVE_TYPE_LIGHT_DALI}
+COVER_TYPES = {AVE_TYPE_SHUTTER, AVE_TYPE_SHUTTER_ALT1, AVE_TYPE_SHUTTER_ALT2}
+CLIMATE_TYPES = {AVE_TYPE_THERMOSTAT}
+SCENARIO_TYPES = {AVE_TYPE_SCENARIO}
+ALARM_TYPES = {AVE_TYPE_ANTITHEFT_AREA}
+
+# WSF family IDs to query at init
+WSF_FAMILIES = ["1", "2", "22", "9", "3", "16", "19", "6"]
+
+# Thermostat
+THERMO_REFRESH_INTERVAL = 15
+THERMO_REFRESH_CYCLES = 6
+THERMO_SEASON_SUMMER = 0
+THERMO_SEASON_WINTER = 1
+THERMO_SEASON_ALL = 2
+THERMO_VMC_DAIKIN_THRESHOLD = 10000000
+
+# Config flow
+CONF_HOST = "host"
+CONF_PORT = "port"
+CONF_USERNAME = "username"
+CONF_PASSWORD = "password"
+
+# Platforms
+PLATFORMS = ["light", "cover", "climate", "button", "alarm_control_panel", "sensor"]
