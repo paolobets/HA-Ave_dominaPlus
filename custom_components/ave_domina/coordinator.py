@@ -453,14 +453,7 @@ class AveCoordinator:
         # Small delay for LMC/LML responses to arrive
         await asyncio.sleep(2.0)
 
-        # Step 3: Request device status by family
-        for family in WSF_FAMILIES:
-            await self._client.send_command(CMD_WSF, [family])
-            await asyncio.sleep(0.3)
-
-        await self._client.send_command(CMD_GSF, ["12"])
-
-        # Step 4: Request device list and wait for response
+        # Step 3: Request device list FIRST (so devices exist for WSF)
         _LOGGER.debug("Init: sending LDI")
         await self._client.send_command(CMD_LDI)
         try:
@@ -468,11 +461,27 @@ class AveCoordinator:
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout waiting for LDI response — no devices discovered")
 
-        # Step 5: Request metadata
+        # Step 4: Now request device status by family (devices exist)
+        _LOGGER.debug("Init: requesting device status (WSF)")
+        for family in WSF_FAMILIES:
+            await self._client.send_command(CMD_WSF, [family])
+            await asyncio.sleep(0.3)
+        await self._client.send_command(CMD_GSF, ["12"])
+        # Wait for WSF responses to arrive
+        await asyncio.sleep(2.0)
+
+        # Step 5: Request metadata and thermostat status
         await self._client.send_command(CMD_GTM)
         await self._client.send_command(CMD_GMA)
         await self._client.send_command(CMD_GNA)
         await self._client.send_command(CMD_LI2)
+
+        # Request thermostat status for each thermostat
+        for dev in list(self.devices.values()):
+            if dev.device_type == AVE_TYPE_THERMOSTAT:
+                await self._client.send_command(CMD_WTS, [str(dev.id)], [""])
+                await asyncio.sleep(0.25)
+        await asyncio.sleep(1.0)
 
         _LOGGER.info(
             "Init complete: %d areas, %d devices",
