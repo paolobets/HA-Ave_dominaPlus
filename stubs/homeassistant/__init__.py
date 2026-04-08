@@ -1,1 +1,0 @@
-# homeassistant stub package
