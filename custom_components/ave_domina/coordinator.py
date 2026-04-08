@@ -79,9 +79,21 @@ class AveCoordinator:
     # Listener pattern
     # ------------------------------------------------------------------
 
+    @property
+    def client(self):
+        """Expose the underlying AVE client."""
+        return self._client
+
     def register_listener(self, callback: Callable[[], None]) -> None:
         """Register a callback to be called on state changes."""
         self._listeners.append(callback)
+
+    def remove_listener(self, callback: Callable[[], None]) -> None:
+        """Remove a previously registered callback."""
+        try:
+            self._listeners.remove(callback)
+        except ValueError:
+            pass
 
     def _notify_listeners(self) -> None:
         for cb in self._listeners:
