@@ -89,10 +89,10 @@ class AveProtocol:
             if len(raw_frame) < 5:
                 continue
 
-            # Verify CRC integrity
+            # Verify CRC integrity (log but don't discard — server may use different CRC)
             if not self.verify_crc(raw_frame):
-                _LOGGER.warning("CRC mismatch on incoming message, discarding")
-                continue
+                _LOGGER.debug("CRC mismatch on frame (len=%d), processing anyway: %s",
+                             len(raw_frame), raw_frame[:20].hex())
 
             # Frame format: STX + PAYLOAD + ETX + CRC_CHAR1 + CRC_CHAR2
             # Strip STX (first byte) and last 3 bytes (ETX + 2 CRC ASCII chars)
