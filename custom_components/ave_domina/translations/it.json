@@ -1,0 +1,17 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AVE DOMINA Plus",
+        "description": "Inserisci l'indirizzo IP del tuo AVE Web Server 53AB-WBS",
+        "data": {
+          "host": "Host",
+          "port": "Porta WebSocket"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossibile connettersi al server AVE. Controlla IP e porta."
+    }
+  }
+}
