@@ -229,7 +229,12 @@ class AveClient:
 
     def _handle_raw_message(self, data: bytes) -> None:
         messages = self._protocol.decode(data)
+        if not messages and len(data) > 4:
+            _LOGGER.debug("Raw data produced 0 messages (%d bytes): %s",
+                         len(data), data[:80].hex())
         for message in messages:
+            _LOGGER.debug("Received: cmd=%s params=%d records=%d",
+                         message.command, len(message.parameters), len(message.records))
             if message.command == "ping":
                 asyncio.create_task(self.send_command(CMD_PONG))
                 continue
