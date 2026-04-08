@@ -206,6 +206,7 @@ class AveClient:
             return False
 
     async def _listen(self) -> None:
+        _LOGGER.debug("WebSocket listener started")
         try:
             async for msg in self._ws:
                 if msg.type == aiohttp.WSMsgType.BINARY:
@@ -213,12 +214,15 @@ class AveClient:
                 elif msg.type == aiohttp.WSMsgType.TEXT:
                     self._handle_raw_message(msg.data.encode("utf-8"))
                 elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                    _LOGGER.warning("WebSocket closed/error: %s", msg.type)
                     break
         except asyncio.CancelledError:
+            _LOGGER.debug("WebSocket listener cancelled")
             return
         except Exception:
             _LOGGER.exception("Error in WebSocket listener")
         finally:
+            _LOGGER.warning("WebSocket listener ended, connected=%s", self._connected)
             self._connected = False
             if self._should_reconnect:
                 self._reconnect_task = asyncio.create_task(self._reconnect())

@@ -121,16 +121,25 @@ class AveCoordinator:
             "ldi": self._handle_ldi,
             "lmc": self._handle_lmc,
             "lml": self._handle_lml,
+            "wsf": self._handle_wsf,
             "wts": self._handle_wts,
             "upd": self._handle_upd,
             "gsf": self._handle_gsf,
             "gtm": self._handle_gtm,
+            "gma": self._handle_noop,
+            "gna": self._handle_noop,
+            "li2": self._handle_noop,
+            "ack": self._handle_noop,
+            "pong": self._handle_noop,
         }.get(cmd)
         if handler:
             try:
                 handler(msg)
             except Exception:
                 _LOGGER.exception("Error handling message %s", msg.command)
+        else:
+            _LOGGER.debug("Unhandled message command: %s (params=%d, records=%d)",
+                         cmd, len(msg.parameters), len(msg.records))
 
     # ------------------------------------------------------------------
     # Handlers
@@ -194,11 +203,36 @@ class AveCoordinator:
         self._ldi_received.set()
         self._notify_listeners()
 
+    def _handle_noop(self, msg: AveMessage) -> None:
+        """Handle known but unneeded messages silently."""
+
     def _handle_lmc(self, msg: AveMessage) -> None:
         """Handle LMC response — area device count (informational)."""
 
     def _handle_lml(self, msg: AveMessage) -> None:
         """Handle LML response — area device list (informational)."""
+
+    def _handle_wsf(self, msg: AveMessage) -> None:
+        """Handle WSF response — device status by family.
+
+        Records: [[device_id, status], [device_id, status], ...]
+        """
+        updated = 0
+        for record in msg.records:
+            if len(record) < 2:
+                continue
+            try:
+                device_id = int(record[0])
+                status = int(record[1])
+                dev = self.devices.get(device_id)
+                if dev is not None:
+                    dev.status = status
+                    updated += 1
+            except (ValueError, IndexError):
+                continue
+        if updated > 0:
+            _LOGGER.debug("WSF updated status for %d devices", updated)
+            self._notify_listeners()
 
     def _handle_wts(self, msg: AveMessage) -> None:
         """Handle WTS response — thermostat status."""
