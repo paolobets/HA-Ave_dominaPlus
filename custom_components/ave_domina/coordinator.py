@@ -518,7 +518,7 @@ class AveCoordinator:
         """Turn a light on or off via WebSocket EBI command."""
         value = EBI_ON if on else EBI_OFF
         _LOGGER.info("Sending light command: EBI device=%d value=%d (on=%s)", device_id, value, on)
-        result = await self._client.send_command(CMD_EBI, [f"{device_id},{value}"])
+        result = await self._client.send_command(CMD_EBI, [str(device_id), str(value)])
         _LOGGER.info("Light command result: %s", result)
         return result
 
@@ -528,11 +528,11 @@ class AveCoordinator:
 
     async def async_set_cover_up(self, device_id: int) -> bool:
         """Open a cover via WebSocket EAI command."""
-        return await self._client.send_command(CMD_EAI, [f"{device_id},{EAI_UP}"])
+        return await self._client.send_command(CMD_EAI, [str(device_id), str(EAI_UP)])
 
     async def async_set_cover_down(self, device_id: int) -> bool:
         """Close a cover via WebSocket EAI command."""
-        return await self._client.send_command(CMD_EAI, [f"{device_id},{EAI_DOWN}"])
+        return await self._client.send_command(CMD_EAI, [str(device_id), str(EAI_DOWN)])
 
     async def async_set_thermostat(
         self,
