@@ -14,6 +14,9 @@ from .const import AVE_TYPE_DIMMER, LIGHT_TYPES
 from .coordinator import AveCoordinator, AveDevice
 from .entity import AveEntity
 
+import logging
+_LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -27,6 +30,7 @@ async def async_setup_entry(
             entities.append(AveDimmer(coordinator, device))
         else:
             entities.append(AveLight(coordinator, device))
+    _LOGGER.info("Setting up %d light entities", len(entities))
     async_add_entities(entities)
 
 

@@ -12,10 +12,7 @@ from .coordinator import AveCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-type AveConfigEntry = ConfigEntry[AveCoordinator]
-
-
-async def async_setup_entry(hass: HomeAssistant, entry: AveConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up AVE DOMINA Plus from a config entry."""
     host = entry.data[CONF_HOST]
     port = entry.data.get(CONF_PORT, DEFAULT_WS_PORT)
@@ -29,6 +26,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: AveConfigEntry) -> bool:
 
     await coordinator.async_send_init_sequence()
 
+    # Log discovered devices by type for diagnostics
+    type_counts: dict[int, int] = {}
+    for dev in coordinator.devices.values():
+        type_counts[dev.device_type] = type_counts.get(dev.device_type, 0) + 1
+    _LOGGER.info(
+        "Device types discovered: %s (total: %d)",
+        dict(sorted(type_counts.items())),
+        len(coordinator.devices),
+    )
+
     entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -36,7 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AveConfigEntry) -> bool:
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: AveConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:

@@ -15,6 +15,9 @@ from .const import COVER_TYPES
 from .coordinator import AveCoordinator, AveDevice
 from .entity import AveEntity
 
+import logging
+_LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -26,6 +29,7 @@ async def async_setup_entry(
         AveCover(coordinator, device)
         for device in coordinator.get_devices_by_types(COVER_TYPES)
     ]
+    _LOGGER.info("Setting up %d cover entities", len(entities))
     async_add_entities(entities)
 
 
