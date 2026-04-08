@@ -32,7 +32,7 @@ class AveDevice:
     id: int
     name: str
     device_type: int
-    maps: int = 0
+    maps: str = ""
     status: int = 0
 
     # Thermostat fields
@@ -167,7 +167,8 @@ class AveCoordinator:
                 raw_id = int(record[0])
                 name = record[1]
                 device_type = int(record[2])
-                maps = int(record[3]) if len(record) > 3 else 0
+                maps_str = record[3] if len(record) > 3 else ""
+                maps = maps_str  # Keep as string — may contain "1;2;3" or be empty
 
                 # VMC Daikin devices have IDs > 10_000_000
                 is_vmc_daikin = raw_id > THERMO_VMC_DAIKIN_THRESHOLD
