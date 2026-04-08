@@ -75,6 +75,10 @@ class AveCoordinator:
         self._listeners: list[Callable[[], None]] = []
         self._thermo_refresh_task: asyncio.Task | None = None
 
+        # Events to synchronize init sequence with async responses
+        self._lm_received = asyncio.Event()
+        self._ldi_received = asyncio.Event()
+
         # Register ourselves as a message handler on the client
         client.register_callback(self.handle_message)
 
@@ -147,6 +151,8 @@ class AveCoordinator:
                 self.areas[area_id] = AveArea(id=area_id, name=name, order=order)
             except (ValueError, IndexError):
                 _LOGGER.warning("Malformed LM record: %s", record)
+        _LOGGER.info("Discovered %d areas", len(self.areas))
+        self._lm_received.set()
         self._notify_listeners()
 
     def _handle_ldi(self, msg: AveMessage) -> None:
@@ -183,6 +189,8 @@ class AveCoordinator:
                 self.devices[device_id] = dev
             except (ValueError, IndexError):
                 _LOGGER.warning("Malformed LDI record: %s", record)
+        _LOGGER.info("Discovered %d devices", len(self.devices))
+        self._ldi_received.set()
         self._notify_listeners()
 
     def _handle_lmc(self, msg: AveMessage) -> None:
@@ -386,24 +394,57 @@ class AveCoordinator:
     # ------------------------------------------------------------------
 
     async def async_send_init_sequence(self) -> None:
-        """Send the full initialisation sequence to the AVE server."""
-        await self._client.send_command(CMD_LM)
+        """Send the full initialisation sequence to the AVE server.
 
-        for area_id, _ in self.areas.items():
+        Waits for LM and LDI responses before returning, so that
+        self.areas and self.devices are populated when platforms set up.
+        """
+        # Reset events for fresh init (e.g. reconnect)
+        self._lm_received.clear()
+        self._ldi_received.clear()
+
+        # Step 1: Request area list and wait for response
+        _LOGGER.debug("Init: sending LM")
+        await self._client.send_command(CMD_LM)
+        try:
+            await asyncio.wait_for(self._lm_received.wait(), timeout=10.0)
+        except asyncio.TimeoutError:
+            _LOGGER.warning("Timeout waiting for LM response — continuing with empty areas")
+
+        # Step 2: Request map commands/labels per area
+        for area_id in self.areas:
             await self._client.send_command(CMD_LMC, [str(area_id)])
             await self._client.send_command(CMD_LML, [str(area_id)])
+        # Small delay for LMC/LML responses to arrive
+        await asyncio.sleep(2.0)
 
+        # Step 3: Request device status by family
         for family in WSF_FAMILIES:
             await self._client.send_command(CMD_WSF, [family])
+            await asyncio.sleep(0.3)
 
         await self._client.send_command(CMD_GSF, ["12"])
+
+        # Step 4: Request device list and wait for response
+        _LOGGER.debug("Init: sending LDI")
         await self._client.send_command(CMD_LDI)
+        try:
+            await asyncio.wait_for(self._ldi_received.wait(), timeout=10.0)
+        except asyncio.TimeoutError:
+            _LOGGER.error("Timeout waiting for LDI response — no devices discovered")
+
+        # Step 5: Request metadata
         await self._client.send_command(CMD_GTM)
         await self._client.send_command(CMD_GMA)
         await self._client.send_command(CMD_GNA)
         await self._client.send_command(CMD_LI2)
 
-        # Kick off periodic thermostat refresh
+        _LOGGER.info(
+            "Init complete: %d areas, %d devices",
+            len(self.areas), len(self.devices),
+        )
+
+        # Step 6: Kick off periodic thermostat refresh
         if self._thermo_refresh_task:
             self._thermo_refresh_task.cancel()
         self._thermo_refresh_task = asyncio.create_task(self._thermo_refresh_loop())
