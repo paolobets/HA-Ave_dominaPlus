@@ -19,6 +19,7 @@ from .const import (
     THERMO_REFRESH_INTERVAL, THERMO_REFRESH_CYCLES,
     THERMO_VMC_DAIKIN_THRESHOLD,
     BRIDGE_CMD_SIL,
+    MAX_DEVICES, MAX_AREAS, MAX_POWER_VALUES,
 )
 from .ave_client import AveMessage
 
@@ -134,6 +135,9 @@ class AveCoordinator:
     def _handle_lm(self, msg: AveMessage) -> None:
         """Handle LM response — area list."""
         for record in msg.records:
+            if len(self.areas) >= MAX_AREAS:
+                _LOGGER.warning("Area limit reached (%s), ignoring further areas", MAX_AREAS)
+                break
             if len(record) < 2:
                 continue
             try:
@@ -148,6 +152,9 @@ class AveCoordinator:
     def _handle_ldi(self, msg: AveMessage) -> None:
         """Handle LDI response — device list."""
         for record in msg.records:
+            if len(self.devices) >= MAX_DEVICES:
+                _LOGGER.warning("Device limit reached (%s), ignoring further devices", MAX_DEVICES)
+                break
             if len(record) < 3:
                 continue
             try:
@@ -362,7 +369,8 @@ class AveCoordinator:
         device_id = int(params[1])
         dev = self.devices.get(device_id)
         if dev:
-            dev.power_values.append((sub, params[2]))
+            if len(dev.power_values) < MAX_POWER_VALUES:
+                dev.power_values.append((sub, params[2]))
 
     def _upd_epv(self, params: list[str]) -> None:
         """epv: energy/power value. params = [epv, id, value]"""

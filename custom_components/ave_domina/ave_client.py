@@ -68,6 +68,16 @@ class AveProtocol:
         body.append(EOT)
         return bytes(body)
 
+    def verify_crc(self, raw_frame: bytes) -> bool:
+        """Verify CRC of a raw frame (without EOT). Returns True if valid."""
+        if len(raw_frame) < 5:
+            return False
+        # Frame: STX + payload + ETX + CRC1 + CRC2
+        body = raw_frame[:-2]  # STX + payload + ETX
+        received_crc = raw_frame[-2:].decode("ascii", errors="replace").upper()
+        expected_crc = self.build_crc(body)
+        return received_crc == expected_crc
+
     def decode(self, data: bytes) -> list[AveMessage]:
         """Decode raw bytes into a list of AveMessage objects."""
         # Split on EOT byte to get individual frames
@@ -78,6 +88,12 @@ class AveProtocol:
             # Minimum valid frame: STX + cmd + ETX + 2 CRC ASCII chars
             if len(raw_frame) < 5:
                 continue
+
+            # Verify CRC integrity
+            if not self.verify_crc(raw_frame):
+                _LOGGER.warning("CRC mismatch on incoming message, discarding")
+                continue
+
             # Frame format: STX + PAYLOAD + ETX + CRC_CHAR1 + CRC_CHAR2
             # Strip STX (first byte) and last 3 bytes (ETX + 2 CRC ASCII chars)
             inner_bytes = raw_frame[1:-3]
@@ -171,16 +187,17 @@ class AveClient:
             return False
 
     async def send_http_command(self, command: str, device_id: int, value: int, is_dimmer_level: bool = False) -> bool:
+        """Send HTTP bridge command. Uses params dict to prevent URL injection."""
         base_url = f"http://{self.host}:{DEFAULT_HTTP_PORT}/bridge.php"
         if is_dimmer_level:
-            url = f"{base_url}?command={command}&parameter={device_id}&dati={value}"
+            params = {"command": command, "parameter": str(device_id), "dati": str(value)}
         else:
-            url = f"{base_url}?command={command}&parameter={device_id},{value}"
+            params = {"command": command, "parameter": f"{device_id},{value}"}
         try:
             session = self._session or aiohttp.ClientSession()
             close_session = self._session is None
             try:
-                async with session.get(url) as resp:
+                async with session.get(base_url, params=params) as resp:
                     return resp.status == 200
             finally:
                 if close_session:

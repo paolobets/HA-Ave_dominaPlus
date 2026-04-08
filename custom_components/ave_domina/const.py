@@ -110,8 +110,26 @@ THERMO_VMC_DAIKIN_THRESHOLD = 10000000
 # Config flow
 CONF_HOST = "host"
 CONF_PORT = "port"
-CONF_USERNAME = "username"
-CONF_PASSWORD = "password"
+
+# Security
+MAX_DEVICES = 500
+MAX_AREAS = 100
+MAX_POWER_VALUES = 10
+MAX_MESSAGE_RATE = 100  # max messages per second before throttling
+
+# Private network ranges (RFC 1918 + link-local)
+PRIVATE_NETWORK_PREFIXES = (
+    "10.",
+    "172.16.", "172.17.", "172.18.", "172.19.",
+    "172.20.", "172.21.", "172.22.", "172.23.",
+    "172.24.", "172.25.", "172.26.", "172.27.",
+    "172.28.", "172.29.", "172.30.", "172.31.",
+    "192.168.",
+    "169.254.",
+    "127.",
+    "fd",  # IPv6 ULA
+    "fe80",  # IPv6 link-local
+)
 
 # Platforms
 PLATFORMS = ["light", "cover", "climate", "button", "alarm_control_panel", "sensor"]

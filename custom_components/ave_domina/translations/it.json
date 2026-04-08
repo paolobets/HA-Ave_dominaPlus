@@ -11,7 +11,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Impossibile connettersi al server AVE. Controlla IP e porta."
+      "cannot_connect": "Impossibile connettersi al server AVE. Controlla IP e porta.",
+      "not_local_network": "Il server AVE deve essere sulla rete locale (IP privato). Gli IP pubblici non sono consentiti per sicurezza."
     }
   }
 }
