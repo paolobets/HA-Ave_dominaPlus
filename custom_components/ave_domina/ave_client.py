@@ -64,7 +64,7 @@ class AveProtocol:
 
         body.append(ETX)
         crc = self.build_crc(bytes(body))
-        body.append(int(crc, 16))
+        body.extend(crc.encode("ascii"))  # 2 ASCII hex chars, as per AVE SDK
         body.append(EOT)
         return bytes(body)
 
@@ -75,15 +75,12 @@ class AveProtocol:
         messages = []
 
         for raw_frame in raw_frames:
-            # Minimum valid frame: STX + at least 1 cmd char + ETX + 1 CRC byte
-            if len(raw_frame) < 4:
+            # Minimum valid frame: STX + cmd + ETX + 2 CRC ASCII chars
+            if len(raw_frame) < 5:
                 continue
-            # Strip STX (first byte) and 1-byte CRC (last byte before ETX)
-            # Frame format: STX + PAYLOAD + ETX + CRC
-            inner_bytes = raw_frame[1:-1]  # skip STX, strip CRC byte
-            # Remove trailing ETX
-            if inner_bytes and inner_bytes[-1] == ETX:
-                inner_bytes = inner_bytes[:-1]
+            # Frame format: STX + PAYLOAD + ETX + CRC_CHAR1 + CRC_CHAR2
+            # Strip STX (first byte) and last 3 bytes (ETX + 2 CRC ASCII chars)
+            inner_bytes = raw_frame[1:-3]
 
             # Split on RS to get records
             pieces = inner_bytes.split(bytes([RS]))
