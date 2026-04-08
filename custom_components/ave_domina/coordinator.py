@@ -53,7 +53,7 @@ class AveDevice:
     is_dali: bool = False
 
     # Sensors
-    humidity: float = 0.0
+    humidity: float | None = None
     power_values: list = field(default_factory=list)
 
 
@@ -260,6 +260,7 @@ class AveCoordinator:
         params = msg.parameters
         if not params:
             return
+        _LOGGER.debug("UPD raw params: %s", params)
         sub = params[0].upper()
 
         try:
@@ -516,7 +517,10 @@ class AveCoordinator:
     async def async_set_light(self, device_id: int, on: bool) -> bool:
         """Turn a light on or off via WebSocket EBI command."""
         value = EBI_ON if on else EBI_OFF
-        return await self._client.send_command(CMD_EBI, [f"{device_id},{value}"])
+        _LOGGER.info("Sending light command: EBI device=%d value=%d (on=%s)", device_id, value, on)
+        result = await self._client.send_command(CMD_EBI, [f"{device_id},{value}"])
+        _LOGGER.info("Light command result: %s", result)
+        return result
 
     async def async_set_dimmer(self, device_id: int, level: int) -> bool:
         """Set dimmer level via HTTP SIL command (no WS equivalent for analog level)."""
@@ -540,7 +544,10 @@ class AveCoordinator:
         """Send thermostat STS command."""
         setpoint_raw = int(round(setpoint * 10))
         payload = f"{season},{mode},{setpoint_raw}"
-        return await self._client.send_command(CMD_STS, [str(device_id), payload])
+        _LOGGER.info("Sending thermostat command: STS device=%d payload=%s", device_id, payload)
+        result = await self._client.send_command(CMD_STS, [str(device_id)], [payload])
+        _LOGGER.info("Thermostat command result: %s", result)
+        return result
 
     async def async_activate_scenario(self, device_id: int) -> bool:
         """Activate a scenario via HTTP ESI command."""
