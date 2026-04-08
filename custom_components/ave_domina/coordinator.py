@@ -389,13 +389,19 @@ class AveCoordinator:
             dev.status = int(params[2])
 
     def _upd_ll(self, params: list[str]) -> None:
-        """LL: DALI level. params = [LL, id, level]"""
+        """LL: sensor reading. params = [LL, id, value_string] e.g. '19.9°C'"""
         if len(params) < 3:
             return
-        device_id = int(params[1])
-        dev = self.devices.get(device_id)
-        if dev:
-            dev.status = int(params[2])
+        # LL values are human-readable strings like "19.9°C" — extract numeric part
+        try:
+            value_str = params[2].replace("°C", "").replace("°", "").strip()
+            value = float(value_str)
+            device_id = int(params[1])
+            dev = self.devices.get(device_id)
+            if dev:
+                dev.temperature = value
+        except (ValueError, IndexError):
+            _LOGGER.debug("Could not parse LL value: %s", params[2])
 
     def _upd_umi(self, params: list[str]) -> None:
         """UMI: humidity. params = [UMI, id, value]"""
@@ -515,10 +521,13 @@ class AveCoordinator:
     # ------------------------------------------------------------------
 
     async def async_set_light(self, device_id: int, on: bool) -> bool:
-        """Turn a light on or off via WebSocket EBI command."""
-        value = EBI_ON if on else EBI_OFF
-        _LOGGER.info("Sending light command: EBI device=%d value=%d (on=%s)", device_id, value, on)
-        result = await self._client.send_command(CMD_EBI, [str(device_id), str(value)])
+        """Turn a light on or off via WebSocket EBI command.
+
+        Uses EBI_TOGGLE (10) which is the standard command used by the
+        AVE webapp for light toggle. EBI_ON(3)/EBI_OFF(2) are dimmer-specific.
+        """
+        _LOGGER.info("Sending light command: EBI device=%d toggle (on=%s)", device_id, on)
+        result = await self._client.send_command(CMD_EBI, [str(device_id), str(EBI_TOGGLE)])
         _LOGGER.info("Light command result: %s", result)
         return result
 
