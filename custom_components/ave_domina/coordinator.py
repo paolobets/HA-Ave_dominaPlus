@@ -463,13 +463,27 @@ class AveCoordinator:
             dev.setpoint = int(params[2]) / 10.0
 
     def _upd_tm(self, params: list[str]) -> None:
-        """TM: thermostat mode. params = [TM, id, mode]"""
+        """TM: thermostat mode. params = [TM, id, mode]
+
+        Mode can be numeric (0, 1, 2, ...) or string ('M'=Manual, '1F'=antifreeze).
+        We store as int: M→1, 1F→-1, numeric as-is.
+        """
         if len(params) < 3:
             return
         device_id = int(params[1])
         dev = self.devices.get(device_id)
         if dev:
-            dev.mode = int(params[2])
+            mode_str = params[2]
+            if mode_str == "M":
+                dev.mode = 1  # Manual
+            elif mode_str == "1F":
+                dev.mode = -1  # Antifreeze forced
+                dev.antifreeze = 1
+            else:
+                try:
+                    dev.mode = int(mode_str)
+                except ValueError:
+                    _LOGGER.debug("Unknown TM mode value: %s for device %d", mode_str, device_id)
 
     def _upd_tr(self, params: list[str]) -> None:
         """TR: thermostat season/mode. params = [TR, id, season]"""
