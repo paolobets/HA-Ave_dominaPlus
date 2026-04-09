@@ -265,22 +265,28 @@ class AveCoordinator:
             self._notify_listeners()
 
     def _handle_wts(self, msg: AveMessage) -> None:
-        """Handle WTS response — thermostat status."""
-        # WTS records: [id, season, mode, setpoint*10, ...]
+        """Handle WTS response — thermostat status.
+
+        Parameters contain the device_id. Records contain thermostat data.
+        """
+        device_id = int(msg.parameters[0]) if msg.parameters else None
+        _LOGGER.debug("WTS response: device_id=%s params=%s records=%s",
+                      device_id, msg.parameters, msg.records)
+        if device_id is None:
+            return
+        dev = self.devices.get(device_id)
+        if dev is None:
+            return
         for record in msg.records:
-            if len(record) < 2:
-                continue
+            _LOGGER.debug("WTS record for device %s: %s (len=%d)",
+                          device_id, record, len(record))
             try:
-                device_id = int(record[0])
-                dev = self.devices.get(device_id)
-                if dev is None:
-                    continue
+                if len(record) > 0:
+                    dev.season = int(record[0])
                 if len(record) > 1:
-                    dev.season = int(record[1])
+                    dev.mode = int(record[1])
                 if len(record) > 2:
-                    dev.mode = int(record[2])
-                if len(record) > 3:
-                    dev.setpoint = int(record[3]) / 10.0
+                    dev.setpoint = int(record[2]) / 10.0
             except (ValueError, IndexError):
                 _LOGGER.warning("Malformed WTS record: %s", record)
         self._notify_listeners()

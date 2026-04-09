@@ -68,27 +68,53 @@ class AveClimate(AveEntity, ClimateEntity):
 
     @property
     def hvac_mode(self) -> HVACMode:
-        if self.ave_device.mode == 0:
-            return HVACMode.OFF
+        """Map AVE season to HA HVAC mode.
+
+        AVE season determines the operating mode (heat/cool/auto).
+        AVE mode (0=inactive, 1=manual) determines if actively working.
+        We map season→hvac_mode and use hvac_action for active/idle.
+        """
         return SEASON_TO_HVAC.get(self.ave_device.season, HVACMode.AUTO)
+
+    @property
+    def hvac_action(self):
+        """Return current HVAC action (heating/cooling/idle)."""
+        from homeassistant.components.climate import HVACAction
+        if self.ave_device.mode == 0:
+            return HVACAction.IDLE
+        if self.ave_device.season == THERMO_SEASON_WINTER:
+            return HVACAction.HEATING
+        elif self.ave_device.season == THERMO_SEASON_SUMMER:
+            return HVACAction.COOLING
+        return HVACAction.IDLE
 
     @property
     def extra_state_attributes(self) -> dict:
         return {
+            "ave_season": self.ave_device.season,
+            "ave_mode": self.ave_device.mode,
             "ave_offset": self.ave_device.offset,
             "ave_window_state": self.ave_device.window_state,
             "ave_keyboard_lock": self.ave_device.keyboard_lock,
             "ave_antifreeze": self.ave_device.antifreeze,
             "ave_fan_level": self.ave_device.fan_level,
+            "ave_local_off": self.ave_device.local_off,
         }
 
     async def async_set_temperature(self, **kwargs) -> None:
+        import logging
+        _LOGGER = logging.getLogger(__name__)
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is not None:
+            _LOGGER.info(
+                "Setting thermostat %s (%s): temp=%.1f season=%d mode=%d",
+                self.ave_device.id, self.ave_device.name,
+                temperature, self.ave_device.season, self.ave_device.mode or 1,
+            )
             await self.coordinator.async_set_thermostat(
                 self.ave_device.id,
                 self.ave_device.season,
-                self.ave_device.mode or 1,
+                1,  # mode=1 (manual) when setting temp from client, as per SDK
                 temperature,
             )
 

@@ -44,10 +44,11 @@ class TestAveClimate:
         climate = AveClimate(mock_coordinator, device)
         assert climate.hvac_mode == HVACMode.AUTO
 
-    def test_hvac_mode_off_when_mode_zero(self, mock_coordinator):
+    def test_hvac_mode_heat_when_winter_inactive(self, mock_coordinator):
+        """mode=0 (inactive) with winter season should show HEAT, not OFF."""
         device = AveDevice(id=40, name="Studio T", device_type=4, season=THERMO_SEASON_WINTER, mode=0)
         climate = AveClimate(mock_coordinator, device)
-        assert climate.hvac_mode == HVACMode.OFF
+        assert climate.hvac_mode == HVACMode.HEAT
 
     @pytest.mark.asyncio
     async def test_set_temperature(self, mock_coordinator):
