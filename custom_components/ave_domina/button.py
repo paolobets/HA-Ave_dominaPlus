@@ -25,6 +25,8 @@ async def async_setup_entry(
 
 
 class AveScenarioButton(AveEntity, ButtonEntity):
+    _attr_icon = "mdi:play-circle-outline"
+
     def __init__(self, coordinator: AveCoordinator, device: AveDevice) -> None:
         super().__init__(coordinator, device)
 

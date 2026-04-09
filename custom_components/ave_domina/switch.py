@@ -43,6 +43,7 @@ class AveMarciaArrestoSwitch(AveEntity, SwitchEntity):
     """AVE Marcia/Arresto outlet — controllable with start/stop commands."""
 
     _attr_device_class = SwitchDeviceClass.OUTLET
+    _attr_icon = "mdi:power-plug"
 
     def __init__(self, coordinator: AveCoordinator, device: AveDevice) -> None:
         super().__init__(coordinator, device)
@@ -64,6 +65,7 @@ class AveMonitoredOutlet(AveEntity, SwitchEntity):
     """AVE No Action outlet — read-only, shows on/off status but cannot be controlled."""
 
     _attr_device_class = SwitchDeviceClass.OUTLET
+    _attr_icon = "mdi:power-plug-outline"
 
     def __init__(self, coordinator: AveCoordinator, device: AveDevice) -> None:
         super().__init__(coordinator, device)

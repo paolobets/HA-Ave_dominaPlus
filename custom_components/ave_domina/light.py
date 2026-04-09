@@ -40,6 +40,7 @@ async def async_setup_entry(
 class AveLight(AveEntity, LightEntity):
     _attr_color_mode = ColorMode.ONOFF
     _attr_supported_color_modes = {ColorMode.ONOFF}
+    _attr_icon = "mdi:lightbulb"
 
     def __init__(self, coordinator: AveCoordinator, device: AveDevice) -> None:
         super().__init__(coordinator, device)
@@ -58,6 +59,7 @@ class AveLight(AveEntity, LightEntity):
 class AveDimmer(AveEntity, LightEntity):
     _attr_color_mode = ColorMode.BRIGHTNESS
     _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
+    _attr_icon = "mdi:brightness-6"
 
     def __init__(self, coordinator: AveCoordinator, device: AveDevice) -> None:
         super().__init__(coordinator, device)
