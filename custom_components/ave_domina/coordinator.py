@@ -268,15 +268,17 @@ class AveCoordinator:
         """Handle WTS response — thermostat status.
 
         Parameters[0] = device_id.
-        Record format (10 fields):
-          [0] season (0=summer, 1=winter, 2=all)
-          [1] configuration/sub-mode
-          [2-3] reserved
-          [4] running flag (1=active, 0=inactive)
-          [5] temperature × 10 (e.g., 191 = 19.1°C)
-          [6] flag
-          [7] setpoint × 10 (e.g., 180 = 18.0°C)
-          [8-9] reserved
+        Record format (10 fields) from SDK THERMO_updateAllFieldsStructure:
+          [0] fan flag (if 0, fanLevel is forced to 0)
+          [1] fanLevel
+          [2] configuration (antifreeze = config % 2)
+          [3] offset × 10
+          [4] season (bit 0: 0=summer, 1=winter) + humidity/IoT flags
+          [5] temperature × 10
+          [6] mode (0=inactive, 1=manual, etc.)
+          [7] setpoint × 10
+          [8] antifreeze forced flag (if 1, mode='1F')
+          [9] localOFF
         """
         device_id = int(msg.parameters[0]) if msg.parameters else None
         if device_id is None:
@@ -287,14 +289,25 @@ class AveCoordinator:
         for record in msg.records:
             _LOGGER.debug("WTS device %s: %s", device_id, record)
             try:
-                if len(record) > 0:
-                    dev.season = int(record[0])
+                if len(record) > 1:
+                    fan_flag = int(record[0])
+                    dev.fan_level = int(record[1]) if fan_flag != 0 else 0
+                if len(record) > 2:
+                    dev.antifreeze = int(record[2]) % 2
+                if len(record) > 3:
+                    dev.offset = int(record[3]) / 10.0
                 if len(record) > 4:
-                    dev.mode = int(record[4])  # running flag
+                    dev.season = int(record[4]) & 0x01
                 if len(record) > 5:
                     dev.temperature = int(record[5]) / 10.0
+                if len(record) > 6:
+                    dev.mode = int(record[6])
                 if len(record) > 7:
                     dev.setpoint = int(record[7]) / 10.0
+                if len(record) > 8 and int(record[8]) == 1:
+                    dev.antifreeze = 1  # forced antifreeze
+                if len(record) > 9:
+                    dev.local_off = int(record[9])
             except (ValueError, IndexError):
                 _LOGGER.warning("Malformed WTS record for device %s: %s", device_id, record)
         self._notify_listeners()
