@@ -78,20 +78,18 @@ class AveClimate(AveEntity, ClimateEntity):
 
     @property
     def hvac_action(self):
-        """Return current HVAC action based on temperature vs setpoint.
+        """Return current HVAC action based on fanLevel from AVE server.
 
-        AVE mode field means manual(1)/auto(0), NOT heating/idle.
-        Actual heating state is determined by comparing temp and setpoint.
+        The AVE app uses fanLevel to determine active/idle state
+        (SDK: WEBAPP_updateStateIconBasedOnFanLevel). fanLevel > 0 means
+        the thermostat is actively heating/cooling; fanLevel = 0 means idle.
         """
         from homeassistant.components.climate import HVACAction
-        temp = self.ave_device.temperature
-        sp = self.ave_device.setpoint
-        if temp == 0 or sp == 0:
-            return HVACAction.IDLE
-        if self.ave_device.season == THERMO_SEASON_WINTER:
-            return HVACAction.HEATING if temp < sp else HVACAction.IDLE
-        elif self.ave_device.season == THERMO_SEASON_SUMMER:
-            return HVACAction.COOLING if temp > sp else HVACAction.IDLE
+        if self.ave_device.fan_level > 0:
+            if self.ave_device.season == THERMO_SEASON_WINTER:
+                return HVACAction.HEATING
+            elif self.ave_device.season == THERMO_SEASON_SUMMER:
+                return HVACAction.COOLING
         return HVACAction.IDLE
 
     @property
