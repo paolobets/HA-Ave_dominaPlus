@@ -26,6 +26,9 @@ async def async_setup_entry(
     coordinator: AveCoordinator = entry.runtime_data
     entities: list[LightEntity] = []
     for device in coordinator.get_devices_by_types(LIGHT_TYPES):
+        # Skip outlets (isMA/isNA) — they go to switch platform
+        if device.is_ma or device.is_na:
+            continue
         if device.device_type == AVE_TYPE_DIMMER:
             entities.append(AveDimmer(coordinator, device))
         else:

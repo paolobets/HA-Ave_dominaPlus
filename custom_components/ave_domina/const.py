@@ -132,4 +132,8 @@ PRIVATE_NETWORK_PREFIXES = (
 )
 
 # Platforms
-PLATFORMS = ["light", "cover", "climate", "button", "alarm_control_panel", "sensor"]
+PLATFORMS = ["light", "switch", "cover", "climate", "button", "alarm_control_panel", "sensor"]
+
+# EBI values for Marcia/Arresto (start/stop outlets)
+EBI_START = 11
+EBI_STOP = 12

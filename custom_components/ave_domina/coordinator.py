@@ -52,6 +52,10 @@ class AveDevice:
     is_rgbw: bool = False
     is_dali: bool = False
 
+    # GMA/GNA flags (set after init from server response)
+    is_ma: bool = False   # Marcia/Arresto — controlled outlets (start/stop)
+    is_na: bool = False   # No Action — monitored outlets (read-only)
+
     # Sensors
     humidity: float | None = None
     power_values: list = field(default_factory=list)
@@ -135,8 +139,8 @@ class AveCoordinator:
             "grp": self._handle_grp,
             "gsf": self._handle_gsf,
             "gtm": self._handle_gtm,
-            "gma": self._handle_noop,
-            "gna": self._handle_noop,
+            "gma": self._handle_gma,
+            "gna": self._handle_gna,
             "li2": self._handle_noop,
             "ack": self._handle_noop,
             "pong": self._handle_noop,
@@ -331,6 +335,44 @@ class AveCoordinator:
 
     def _handle_gtm(self, msg: AveMessage) -> None:
         """Handle GTM response (server time, informational)."""
+
+    def _handle_gma(self, msg: AveMessage) -> None:
+        """Handle GMA response — Marcia/Arresto device list.
+
+        Parameters contain device IDs that support start/stop (outlets with control).
+        Sets is_ma=True on matching devices.
+        """
+        count = 0
+        for param in msg.parameters:
+            try:
+                device_id = int(param)
+                dev = self.devices.get(device_id)
+                if dev is not None:
+                    dev.is_ma = True
+                    count += 1
+            except (ValueError, IndexError):
+                continue
+        if count > 0:
+            _LOGGER.info("GMA: marked %d devices as Marcia/Arresto (switch)", count)
+
+    def _handle_gna(self, msg: AveMessage) -> None:
+        """Handle GNA response — No Action device list.
+
+        Parameters contain device IDs that are monitored-only (outlets, no dimmer).
+        Sets is_na=True on matching devices.
+        """
+        count = 0
+        for param in msg.parameters:
+            try:
+                device_id = int(param)
+                dev = self.devices.get(device_id)
+                if dev is not None:
+                    dev.is_na = True
+                    count += 1
+            except (ValueError, IndexError):
+                continue
+        if count > 0:
+            _LOGGER.info("GNA: marked %d devices as No Action (monitored outlet)", count)
 
     # ------------------------------------------------------------------
     # UPD sub-handlers
