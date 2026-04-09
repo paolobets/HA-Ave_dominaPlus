@@ -220,7 +220,24 @@ class AveCoordinator:
         """Handle known but unneeded messages silently."""
 
     def _handle_lmc(self, msg: AveMessage) -> None:
-        """Handle LMC response — area device count (informational)."""
+        """Handle LMC response — map commands with device linkage.
+
+        Records contain: [commandId, commandName, commandType, x, y,
+        icod, ico1-7, icoc, deviceId(14), deviceFamily(15)]
+        """
+        for record in msg.records:
+            if len(record) >= 16:
+                device_id_str = record[14]
+                device_family = record[15]
+                cmd_name = record[1] if len(record) > 1 else "?"
+                try:
+                    device_id = int(device_id_str)
+                    _LOGGER.debug(
+                        "LMC map: device_id=%s name='%s' family=%s",
+                        device_id, cmd_name, device_family,
+                    )
+                except (ValueError, IndexError):
+                    pass
 
     def _handle_lml(self, msg: AveMessage) -> None:
         """Handle LML response — area device list (informational)."""
