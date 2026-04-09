@@ -78,14 +78,20 @@ class AveClimate(AveEntity, ClimateEntity):
 
     @property
     def hvac_action(self):
-        """Return current HVAC action (heating/cooling/idle)."""
+        """Return current HVAC action based on temperature vs setpoint.
+
+        AVE mode field means manual(1)/auto(0), NOT heating/idle.
+        Actual heating state is determined by comparing temp and setpoint.
+        """
         from homeassistant.components.climate import HVACAction
-        if self.ave_device.mode == 0:
+        temp = self.ave_device.temperature
+        sp = self.ave_device.setpoint
+        if temp == 0 or sp == 0:
             return HVACAction.IDLE
         if self.ave_device.season == THERMO_SEASON_WINTER:
-            return HVACAction.HEATING
+            return HVACAction.HEATING if temp < sp else HVACAction.IDLE
         elif self.ave_device.season == THERMO_SEASON_SUMMER:
-            return HVACAction.COOLING
+            return HVACAction.COOLING if temp > sp else HVACAction.IDLE
         return HVACAction.IDLE
 
     @property
