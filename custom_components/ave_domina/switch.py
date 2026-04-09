@@ -8,7 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import LIGHT_TYPES, EBI_START, EBI_STOP, EBI_TOGGLE, CMD_EBI
+from .const import LIGHT_TYPES, OUTLET_TYPES, EBI_START, EBI_STOP, EBI_TOGGLE, CMD_EBI
 from .coordinator import AveCoordinator, AveDevice
 from .entity import AveEntity
 
@@ -23,13 +23,18 @@ async def async_setup_entry(
     """Set up AVE switch entities for outlets."""
     coordinator: AveCoordinator = entry.runtime_data
     entities: list[SwitchEntity] = []
+
+    # Type 9 devices (OUTLET_TYPES) are always switches — energy monitored outlets
+    for device in coordinator.get_devices_by_types(OUTLET_TYPES):
+        entities.append(AveMonitoredOutlet(coordinator, device))
+
+    # Type 1 devices with GMA/GNA flags also go to switch
     for device in coordinator.get_devices_by_types(LIGHT_TYPES):
         if device.is_ma:
-            # Marcia/Arresto outlet — controllable (start/stop)
             entities.append(AveMarciaArrestoSwitch(coordinator, device))
         elif device.is_na:
-            # No Action outlet — read-only monitoring
             entities.append(AveMonitoredOutlet(coordinator, device))
+
     _LOGGER.info("Setting up %d switch entities", len(entities))
     async_add_entities(entities)
 
