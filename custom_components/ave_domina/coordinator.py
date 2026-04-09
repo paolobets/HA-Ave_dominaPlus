@@ -267,28 +267,36 @@ class AveCoordinator:
     def _handle_wts(self, msg: AveMessage) -> None:
         """Handle WTS response — thermostat status.
 
-        Parameters contain the device_id. Records contain thermostat data.
+        Parameters[0] = device_id.
+        Record format (10 fields):
+          [0] season (0=summer, 1=winter, 2=all)
+          [1] configuration/sub-mode
+          [2-3] reserved
+          [4] running flag (1=active, 0=inactive)
+          [5] temperature × 10 (e.g., 191 = 19.1°C)
+          [6] flag
+          [7] setpoint × 10 (e.g., 180 = 18.0°C)
+          [8-9] reserved
         """
         device_id = int(msg.parameters[0]) if msg.parameters else None
-        _LOGGER.debug("WTS response: device_id=%s params=%s records=%s",
-                      device_id, msg.parameters, msg.records)
         if device_id is None:
             return
         dev = self.devices.get(device_id)
         if dev is None:
             return
         for record in msg.records:
-            _LOGGER.debug("WTS record for device %s: %s (len=%d)",
-                          device_id, record, len(record))
+            _LOGGER.debug("WTS device %s: %s", device_id, record)
             try:
                 if len(record) > 0:
                     dev.season = int(record[0])
-                if len(record) > 1:
-                    dev.mode = int(record[1])
-                if len(record) > 2:
-                    dev.setpoint = int(record[2]) / 10.0
+                if len(record) > 4:
+                    dev.mode = int(record[4])  # running flag
+                if len(record) > 5:
+                    dev.temperature = int(record[5]) / 10.0
+                if len(record) > 7:
+                    dev.setpoint = int(record[7]) / 10.0
             except (ValueError, IndexError):
-                _LOGGER.warning("Malformed WTS record: %s", record)
+                _LOGGER.warning("Malformed WTS record for device %s: %s", device_id, record)
         self._notify_listeners()
 
     def _handle_upd(self, msg: AveMessage) -> None:
